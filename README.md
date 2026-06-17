@@ -1,81 +1,122 @@
 # WizPay Nano
 
-> USDC pay-per-call API for AI agents, settled on **Arc L1** (Circle's stablecoin-native chain).
-> Built for the **Lepton Agents Hackathon** (Canteen × Circle), June 15–29 2026.
+WizPay Nano is a paid swap execution-planning service for AI treasury agents on Arc Testnet.
 
-🌐 **Live (after deploy):** https://nano.wizpay.xyz
-🔌 **API:** https://api.wizpay.xyz
-📺 **Demo:** _(link to 3-min video)_
+Agents choose `tokenIn`, `tokenOut`, `amountIn`, `recipient`, and optional `slippageBps`. WizPay Nano quotes through `XyloRouter`, validates `WizPaySwapExecutor` onchain state, and returns approval details plus encoded `executeSwap(...)` calldata for the agent wallet to execute directly.
 
-## What is this?
+The backend charges a 0.003 USDC service fee for `POST /swap/prepare`. It does not custody user swap funds, does not decide the swap amount, does not sign transactions, and does not deploy contracts.
 
-WizPay Nano exposes a small set of **monetized HTTP endpoints** for AI agents.
-Each call returns `402 Payment Required` with a USDC invoice; the caller pays in
-USDC on Arc, then retries with an `X-PAYMENT` header — gateway returns `200 OK`.
+## MVP Scope
 
-Pattern: **402 → pay → 200**, settled in <500ms with ~$0.01 USDC fees.
+- Supported swap tokens: USDC and EURC, in either direction.
+- Unsupported: USYC, payroll, new contracts, backend swap execution.
+- Primary payment path: Circle CLI / x402-compatible service payment.
+- Local demo fallback: a real Arc Testnet USDC transfer proven with `X-PAYMENT: <txHash>`.
 
-## Endpoints (planned)
+## Verified Arc Testnet MVP Run
 
-| Method | Path | Price (USDC) | Purpose |
-|---|---|---|---|
-| `POST` | `/quote-swap` | free | Get swap rate (no x402) |
-| `GET`  | `/balance/:addr` | $0.0001 | Read USDC balance |
-| `POST` | `/transfer` | $0.003 | Send USDC |
-| `POST` | `/execute-swap` | $0.005 | Execute swap |
-| `POST` | `/auto-swap` | $0.01 | Strategy (DCA/threshold) |
+The MVP vertical slice has been verified end-to-end on Arc Testnet: the agent checks services and contracts, requests a dynamic quote, sees `402 Payment Required` before payment, pays the 0.003 USDC service fee, retries `/swap/prepare` with `X-PAYMENT`, approves `tokenIn` to `WizPaySwapExecutor`, executes through `WizPaySwapExecutor` + `XyloRouter`, and confirms balances onchain.
 
-## Stack
+Proof transactions:
 
-- **Runtime:** Node.js 22 + TypeScript
-- **Server:** Fastify
-- **Chain:** viem (EVM-compatible, Arc Testnet)
-- **Payment:** x402 protocol (manual middleware, USDC settlement)
-- **Frontend:** 1-file HTML on Vercel (separate folder `web/`)
-- **Agents:** 3 Node.js demo agents (oracle, swap, treasury)
+- Service fee tx: https://testnet.arcscan.app/tx/0x6ba878c0f83d5ea763a810ce55154f86f93ff9562b233c7224351e1cb539316b
+- Approve tx: https://testnet.arcscan.app/tx/0x30961fd71fea75ed61a96b68ffdab09bb0815db151ff30ed03682f3ba900f0b2
+- Swap execution tx: https://testnet.arcscan.app/tx/0xa9f27f981910693728bb337c179b80e5cddd841fdd2ac7a63a8ed0b3f542fccd
+
+Scope:
+
+- MVP uses `WizPaySwapExecutor` + `XyloRouter`.
+- Supported tokens: USDC and EURC.
+- No USYC in MVP.
+- No payroll in MVP.
+- No backend custody.
+- Agent/user chooses token pair and amount.
+- Circle CLI is the primary agent-side wallet/payment path.
+- `X-PAYMENT` tx hash fallback is a real onchain local/dev path, not a mock.
+
+## Endpoints
+
+| Method | Path | Payment | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/` | Free | Project metadata and links |
+| `GET` | `/health` | Free | Server health |
+| `GET` | `/services` | Free | Agent-readable service manifest |
+| `GET` | `/contracts/status` | Free | Live Arc Testnet executor/router status |
+| `POST` | `/swap/quote` | Free | Quote USDC/EURC or EURC/USDC for an agent amount |
+| `POST` | `/swap/prepare` | 0.003 USDC | Validate and return executable calldata |
 
 ## Local Dev
 
 ```bash
-cp .env.example .env  # fill in test wallet keys + LLM key
+cp .env.example .env
 npm install
-npm run dev           # http://localhost:3000
+npm run dev
 ```
 
-## Project Structure
+The API listens on `http://localhost:3000` by default.
 
-```
-nano-wizpay/
-├── src/
-│   ├── server.ts          # Fastify entrypoint
-│   ├── config.ts          # env loader + chain config
-│   ├── x402.ts            # manual x402 middleware (402→pay→200)
-│   ├── routes/
-│   │   ├── balance.ts
-│   │   ├── transfer.ts
-│   │   ├── quote-swap.ts
-│   │   ├── execute-swap.ts
-│   │   └── auto-swap.ts
-│   ├── chain/
-│   │   ├── usdc.ts        # USDC contract helpers
-│   │   └── wallet.ts      # viem wallet helpers
-│   └── agents/
-│       ├── oracle.ts
-│       ├── swap.ts
-│       └── treasury.ts
-├── web/
-│   └── index.html         # 1-file landing
-├── .env.example
-├── package.json
-└── tsconfig.json
+Run checks:
+
+```bash
+npm run typecheck
+npm run build
 ```
 
-## Hackathon
+## Example Requests
 
-- **Event:** Lepton Agents Hackathon, Canteen × Circle × Arc
-- **Dates:** Jun 15 – Jun 29, 2026
-- **RFB alignment:** RFB 02 (Selling Agent Services) + RFB 03 (A2A Networks)
-- **Submission:** GitHub repo + 3-min demo video + live deployed link
+Quote:
+
+```bash
+curl -s http://localhost:3000/swap/quote \
+  -H 'content-type: application/json' \
+  -d '{"tokenIn":"USDC","tokenOut":"EURC","amountIn":"1"}'
+```
+
+Prepare without payment returns `402 Payment Required`:
+
+```bash
+curl -i http://localhost:3000/swap/prepare \
+  -H 'content-type: application/json' \
+  -d '{"tokenIn":"USDC","tokenOut":"EURC","amountIn":"1","recipient":"0x0000000000000000000000000000000000000001"}'
+```
+
+For local real-chain fallback only, send a USDC service-fee transfer to `SERVICE_FEE_COLLECTOR`, then retry:
+
+```bash
+curl -s http://localhost:3000/swap/prepare \
+  -H 'content-type: application/json' \
+  -H 'X-PAYMENT: 0x...' \
+  -d '{"tokenIn":"USDC","tokenOut":"EURC","amountIn":"1","recipient":"0x0000000000000000000000000000000000000001"}'
+```
+
+## Treasury Agent
+
+```bash
+npm run agent:treasury -- \
+  --tokenIn=USDC \
+  --tokenOut=EURC \
+  --amountIn=1 \
+  --recipient=0x0000000000000000000000000000000000000001
+```
+
+The example defaults are local conveniences only. They are not protocol constraints.
+
+For tx-hash fallback retries:
+
+```bash
+PAYMENT_MODE=txhash X_PAYMENT=0x... npm run agent:treasury -- --tokenIn=EURC --tokenOut=USDC --amountIn=1 --recipient=0x...
+```
+
+## Contracts
+
+- Arc Testnet RPC: `https://rpc.testnet.arc.network`
+- Arc Testnet chain ID: `5042002`
+- Arcscan: `https://testnet.arcscan.app`
+- `WizPaySwapExecutor`: `0x17685466759f9Cde06f0DCbB5464164ABe541eFA`
+- `XyloRouter`: `0x73742278c31a76dBb0D2587d03ef92E6E2141023`
+- `USDC`: `0x3600000000000000000000000000000000000000`
+- `EURC`: `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a`
+- Service fee collector: `0x32F251fc36A1174901124589EAC2d4E391816F69`
 
 ## License
 

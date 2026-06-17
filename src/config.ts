@@ -1,82 +1,72 @@
-// src/config.ts — env loader + Arc chain config
-import { defineChain } from "viem";
 import "dotenv/config";
+import { defineChain, getAddress, parseUnits, type Address } from "viem";
 
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
+function optional(name: string, fallback: string): string {
+  const value = process.env[name];
+  return value && value.trim().length > 0 ? value : fallback;
 }
 
-function optional(name: string, fallback = ""): string {
-  return process.env[name] ?? fallback;
+function address(name: string, fallback: string): Address {
+  return getAddress(optional(name, fallback));
 }
-
-// Arc Testnet chain definition (Canteen-hosted)
-export const arcTestnet = defineChain({
-  id: Number(optional("ARC_CHAIN_ID", "5042001")),
-  name: "Arc Testnet",
-  network: "arc-testnet",
-  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 6 },
-  rpcUrls: {
-    default: {
-      http: [optional("ARC_RPC_URL", "https://rpc.arc-testnet.canteen.network")],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Arc Explorer",
-      url: "https://explorer.arc-testnet.network",
-    },
-  },
-  testnet: true,
-});
 
 export const config = {
   port: Number(optional("PORT", "3000")),
   host: optional("HOST", "0.0.0.0"),
-  nodeEnv: optional("NODE_ENV", "development"),
-  isDev: optional("NODE_ENV", "development") === "development",
-
+  apiBaseUrl: optional("API_BASE_URL", "http://localhost:3000"),
   arc: {
-    rpcUrl: optional("ARC_RPC_URL", "https://rpc.arc-testnet.canteen.network"),
-    chainId: Number(optional("ARC_CHAIN_ID", "5042001")),
-    chain: arcTestnet,
-    usdcContract: optional(
-      "USDC_CONTRACT",
-      "0x3600000000000000000000000000000000000000"
-    ) as `0x${string}`,
+    rpcUrl: optional("ARC_TESTNET_RPC_URL", "https://rpc.testnet.arc.network"),
+    chainId: Number(optional("ARC_TESTNET_CHAIN_ID", "5042002")),
+    explorer: optional("ARC_TESTNET_EXPLORER", "https://testnet.arcscan.app"),
   },
-
-  server: {
-    privateKey: optional("SERVER_WALLET_PRIVATE_KEY"),
+  contracts: {
+    executor: address(
+      "WIZPAY_SWAP_EXECUTOR",
+      "0x17685466759f9Cde06f0DCbB5464164ABe541eFA",
+    ),
+    router: address(
+      "XYLO_ROUTER",
+      "0x73742278c31a76dBb0D2587d03ef92E6E2141023",
+    ),
   },
-
-  settlement: {
-    mode: optional("SETTLEMENT_MODE", "arc_testnet"),
-    minPaymentUsdc: optional("MIN_PAYMENT_USDC", "0.0001"),
+  tokens: {
+    usdc: address("USDC_ADDRESS", "0x3600000000000000000000000000000000000000"),
+    eurc: address("EURC_ADDRESS", "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"),
   },
-
-  llm: {
-    provider: optional("LLM_PROVIDER", "openai"),
-    apiKey: optional("LLM_API_KEY"),
-    model: optional("LLM_MODEL", "gpt-4o-mini"),
+  serviceFee: {
+    collector: address(
+      "SERVICE_FEE_COLLECTOR",
+      "0x32F251fc36A1174901124589EAC2d4E391816F69",
+    ),
+    usdc: optional("SERVICE_FEE_USDC", "0.003"),
   },
-
-  x402: {
-    facilitatorUrl: optional("X402_FACILITATOR_URL"),
-    network: optional("X402_NETWORK", "arc-testnet"),
+  swaps: {
+    defaultSlippageBps: Number(optional("DEFAULT_SLIPPAGE_BPS", "100")),
+    deadlineSeconds: Number(optional("SWAP_DEADLINE_SECONDS", "600")),
   },
 };
 
-export function requireServerKey(): `0x${string}` {
-  const k = config.server.privateKey;
-  if (!k) throw new Error("SERVER_WALLET_PRIVATE_KEY is empty");
-  return k as `0x${string}`;
+export const arcTestnet = defineChain({
+  id: config.arc.chainId,
+  name: "Arc Testnet",
+  network: "arc-testnet",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 6 },
+  rpcUrls: {
+    default: { http: [config.arc.rpcUrl] },
+  },
+  blockExplorers: {
+    default: { name: "Arcscan", url: config.arc.explorer },
+  },
+  testnet: true,
+});
+
+export const SERVICE_ID = "wizpay.nano.swap.prepare";
+export const SERVICE_FEE_BASE_UNITS = parseUnits(config.serviceFee.usdc, 6);
+
+export function arcscanAddressUrl(addr: Address): string {
+  return `${config.arc.explorer}/address/${addr}`;
 }
 
-export function requireLlmKey(): string {
-  const k = config.llm.apiKey;
-  if (!k) throw new Error("LLM_API_KEY is empty");
-  return k;
+export function arcscanTxUrl(hash: `0x${string}`): string {
+  return `${config.arc.explorer}/tx/${hash}`;
 }

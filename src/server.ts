@@ -1,10 +1,10 @@
-// src/server.ts — WizPay Nano entrypoint (Phase 1a: hello world)
 import "dotenv/config";
-import Fastify from "fastify";
 import cors from "@fastify/cors";
-
-const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? "0.0.0.0";
+import Fastify from "fastify";
+import { config } from "./config.js";
+import { contractsRoutes } from "./routes/contracts.js";
+import { servicesRoutes } from "./routes/services.js";
+import { swapRoutes } from "./routes/swap.js";
 
 const app = Fastify({
   logger: {
@@ -16,29 +16,20 @@ const app = Fastify({
 });
 
 await app.register(cors, { origin: true });
+await app.register(servicesRoutes);
+await app.register(contractsRoutes);
+await app.register(swapRoutes);
 
-// Health
 app.get("/health", async () => ({
   status: "ok",
   service: "wizpay-nano",
-  version: "0.1.0",
+  chain: "arc-testnet",
   timestamp: new Date().toISOString(),
 }));
 
-// Info (placeholder for landing page)
-app.get("/", async () => ({
-  name: "WizPay Nano",
-  tagline: "USDC pay-per-call API for AI agents on Arc",
-  status: "Phase 1a — local dev only",
-  endpoints: {
-    health: "GET /health",
-  },
-  hackathon: "Lepton Agents (Canteen × Circle), Jun 15–29 2026",
-}));
-
 try {
-  await app.listen({ port: PORT, host: HOST });
-  app.log.info(`🟢 WizPay Nano listening on http://${HOST}:${PORT}`);
+  await app.listen({ port: config.port, host: config.host });
+  app.log.info(`WizPay Nano listening on http://${config.host}:${config.port}`);
 } catch (err) {
   app.log.error(err);
   process.exit(1);
