@@ -191,6 +191,44 @@ curl -s http://localhost:3000/payroll/prepare \
 
 Use `approval.circleCliCommand`, then execute each `batches[].circleCliCommand` from the payer wallet. Replaying the same `X-PAYMENT` tx hash should not unlock another prepare response.
 
+## Payroll DRY_RUN Agent
+
+The dry-run agent communicates with Nano WizPay through HTTP API calls only. It prints the next actions for a human or agent wallet and does not execute transactions.
+
+Run without a payment tx hash:
+
+```bash
+WIZPAY_API_BASE_URL=http://localhost:3001 \
+PAYROLL_PAYER_ADDRESS=<PAYER_WALLET_ADDRESS> \
+PAYROLL_DEMO_RECIPIENT=<DEMO_RECIPIENT_ADDRESS> \
+npm run agent:payroll
+```
+
+Expected flow:
+
+- Calls `/payroll/plan`.
+- Calls `/payroll/prepare` without `X-PAYMENT`.
+- Receives `402 Payment Required`.
+- Prints the service-fee command and stops.
+
+Run after paying the service fee:
+
+```bash
+WIZPAY_API_BASE_URL=http://localhost:3001 \
+PAYROLL_PAYER_ADDRESS=<PAYER_WALLET_ADDRESS> \
+PAYROLL_PAYMENT_TX_HASH=<SERVICE_FEE_TX_HASH> \
+npm run agent:payroll
+```
+
+Expected flow:
+
+- Retries `/payroll/prepare` with `X-PAYMENT`.
+- Prints the approval command.
+- Prints each `batchRouteAndPay(...)` command and calldata length.
+- Does not run any Circle CLI command.
+
+Set `PAYROLL_INTENT_JSON` to override the generated 3-payout local demo intent. The sample stays small, uses a dynamic reference ID, does not use USYC, and derives batching from the API response.
+
 ## Proof Transactions
 
 - Service fee tx: https://testnet.arcscan.app/tx/0x6ba878c0f83d5ea763a810ce55154f86f93ff9562b233c7224351e1cb539316b

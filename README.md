@@ -222,6 +222,41 @@ For tx-hash fallback retries:
 PAYMENT_MODE=txhash X_PAYMENT=0x... npm run agent:treasury -- --tokenIn=EURC --tokenOut=USDC --amountIn=1 --recipient=0x...
 ```
 
+## Payroll DRY_RUN Agent
+
+The payroll dry-run agent calls Nano WizPay over HTTP only. It never runs Circle CLI commands, never signs, never executes payroll transactions, and never custodies funds.
+
+Configure a local payer wallet and, optionally, a demo recipient:
+
+```bash
+WIZPAY_API_BASE_URL=http://localhost:3001 \
+PAYROLL_PAYER_ADDRESS=<PAYER_WALLET_ADDRESS> \
+PAYROLL_DEMO_RECIPIENT=<DEMO_RECIPIENT_ADDRESS> \
+npm run agent:payroll
+```
+
+Run A, without `PAYROLL_PAYMENT_TX_HASH`:
+
+- The agent builds a dynamic local demo intent with a generated `PAYROLL-DRY-RUN-<timestamp>` reference.
+- The agent calls `/payroll/plan`.
+- The agent calls `/payroll/prepare` without payment and expects `402 Payment Required`.
+- The agent prints the service-fee command and stops.
+
+Run B, after paying the service fee:
+
+```bash
+WIZPAY_API_BASE_URL=http://localhost:3001 \
+PAYROLL_PAYER_ADDRESS=<PAYER_WALLET_ADDRESS> \
+PAYROLL_PAYMENT_TX_HASH=<SERVICE_FEE_TX_HASH> \
+npm run agent:payroll
+```
+
+- The agent retries `/payroll/prepare` with `X-PAYMENT`.
+- The agent prints `approval.circleCliCommand` and each `batchRouteAndPay(...)` command.
+- No execution happens; a human or agent wallet decides whether to run the printed commands.
+
+For custom payloads, set `PAYROLL_INTENT_JSON` to a payroll intent JSON object. The script injects `PAYROLL_PAYER_ADDRESS` as the payer. Keep payloads dynamic: no hardcoded screenshot values, no USYC, and max 50 recipients per batch.
+
 ## Contracts
 
 - Arc Testnet RPC: `https://rpc.testnet.arc.network`

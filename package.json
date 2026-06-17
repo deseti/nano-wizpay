@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "agent:treasury": "tsx src/agents/treasury.ts"
+    "agent:treasury": "tsx src/agents/treasury.ts",
+    "agent:payroll": "tsx src/agents/payroll.ts"
   },
   "keywords": [
     "arc",
