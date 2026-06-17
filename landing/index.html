@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nano WizPay | Paid Orchestration API for Arc Testnet Agents</title>
+    <meta
+      name="description"
+      content="Nano WizPay is a non-custodial x402-style paid orchestration API for autonomous agents on Arc Testnet."
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #030609;
+        --panel: #070d12;
+        --panel-strong: #0a1219;
+        --line: #1b3341;
+        --line-bright: #1e90c2;
+        --text: #f2f8fb;
+        --muted: #8ba2ae;
+        --soft: #54707d;
+        --cyan: #29c8ff;
+        --blue: #2f7dff;
+        --green: #63e6a7;
+        --radius: 8px;
+        --max: 1160px;
+        font-family:
+          "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+          monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(rgba(41, 200, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(41, 200, 255, 0.03) 1px, transparent 1px),
+          radial-gradient(circle at 78% 16%, rgba(47, 125, 255, 0.18), transparent 34rem),
+          var(--bg);
+        background-size: 44px 44px, 44px 44px, auto, auto;
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--cyan);
+      }
+
+      .page {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 22px 42px;
+      }
+
+      header {
+        min-height: 76px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 20px;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .mark {
+        width: 30px;
+        height: 30px;
+        color: var(--cyan);
+      }
+
+      .brand span {
+        color: var(--cyan);
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      nav a {
+        white-space: nowrap;
+      }
+
+      .nav-primary {
+        color: var(--cyan);
+      }
+
+      .hero {
+        min-height: calc(100vh - 76px);
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+        align-items: center;
+        gap: 42px;
+        padding: 48px 0 34px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(44px, 7vw, 86px);
+        line-height: 0.95;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+
+      .accent {
+        color: var(--cyan);
+      }
+
+      .lede {
+        max-width: 660px;
+        margin: 28px 0 0;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.75;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 36px;
+      }
+
+      .button {
+        min-height: 50px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 0 20px;
+        border: 1px solid var(--line-bright);
+        color: var(--cyan);
+        background: rgba(41, 200, 255, 0.04);
+        font-size: 13px;
+      }
+
+      .button.secondary {
+        border-color: var(--line);
+        color: var(--text);
+        background: transparent;
+      }
+
+      .status-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 34px;
+        color: var(--soft);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .status-line strong {
+        color: var(--green);
+        font-weight: 500;
+      }
+
+      .diagram {
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(rgba(41, 200, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(41, 200, 255, 0.035) 1px, transparent 1px),
+          rgba(3, 6, 9, 0.82);
+        background-size: 24px 24px;
+        padding: 22px;
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+      }
+
+      .diagram-title {
+        margin: 0 0 18px;
+        color: var(--cyan);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .section {
+        border-top: 1px solid var(--line);
+        padding: 42px 0;
+      }
+
+      .section h2 {
+        margin: 0 0 24px;
+        color: var(--cyan);
+        font-size: 14px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .proofs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .proof {
+        min-height: 210px;
+        border: 1px solid var(--line);
+        background: rgba(7, 13, 18, 0.78);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .proof h3,
+      .model-step h3,
+      .link-card h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .proof p,
+      .model-step p,
+      .link-card p {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .tx {
+        margin-top: 22px;
+        color: var(--cyan);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .api {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        border: 1px solid var(--line);
+        background: rgba(3, 6, 9, 0.72);
+      }
+
+      .endpoint-list {
+        border-right: 1px solid var(--line);
+      }
+
+      .endpoint-list div {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        border-bottom: 1px solid rgba(27, 51, 65, 0.65);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .endpoint-list div:first-child {
+        color: var(--cyan);
+        background: rgba(41, 200, 255, 0.08);
+      }
+
+      code,
+      pre {
+        font: inherit;
+      }
+
+      pre {
+        margin: 0;
+        padding: 22px;
+        overflow-x: auto;
+        color: #aee8ff;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .comment {
+        color: var(--soft);
+      }
+
+      .string {
+        color: var(--green);
+      }
+
+      .model {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .model-step {
+        border: 1px solid var(--line);
+        padding: 20px;
+        min-height: 190px;
+        background: rgba(7, 13, 18, 0.68);
+      }
+
+      .number {
+        display: inline-flex;
+        width: 26px;
+        height: 26px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 22px;
+        border: 1px solid var(--line-bright);
+        color: var(--cyan);
+        font-size: 12px;
+      }
+
+      .links {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .link-card {
+        min-height: 158px;
+        border: 1px solid var(--line);
+        padding: 18px;
+        background: rgba(7, 13, 18, 0.68);
+      }
+
+      .link-card a {
+        display: inline-block;
+        margin-top: 18px;
+        color: var(--cyan);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding-top: 28px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 920px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 22px 0;
+        }
+
+        nav {
+          width: 100%;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .hero {
+          min-height: auto;
+          grid-template-columns: 1fr;
+          padding-top: 46px;
+        }
+
+        .proofs,
+        .api,
+        .model,
+        .links {
+          grid-template-columns: 1fr;
+        }
+
+        .endpoint-list {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 540px) {
+        .page {
+          padding-inline: 16px;
+        }
+
+        h1 {
+          font-size: 42px;
+        }
+
+        .button {
+          width: 100%;
+        }
+
+        .diagram {
+          padding: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <a class="brand" href="#top" aria-label="Nano WizPay home">
+          <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+            <path d="M6 34V6l28 28V6" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M14 6v28M26 6v28" fill="none" stroke="currentColor" stroke-width="1" opacity="0.45" />
+          </svg>
+          Nano <span>WizPay</span>
+        </a>
+        <nav aria-label="Primary navigation">
+          <a href="https://docs.wizpay.xyz/agent-connect">Docs</a>
+          <a href="https://api.wizpay.xyz">Live API</a>
+          <a href="https://github.com/deseti/nano-wizpay/blob/main/JUDGE-QUICKSTART.md">Judge Quickstart</a>
+          <a href="https://github.com/deseti/nano-wizpay/blob/main/docs/PROOFS.md">Proofs</a>
+          <a class="nav-primary" href="https://github.com/deseti/nano-wizpay">GitHub</a>
+        </nav>
+      </header>
+
+      <main id="top">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <h1 id="hero-title">Nano <span class="accent">WizPay</span></h1>
+            <p class="lede">
+              A non-custodial x402-style paid orchestration API for autonomous agents on Arc Testnet.
+              Nano WizPay prepares quotes, verifies payment state, generates calldata and executor commands,
+              then returns onchain proofs for agent workflows.
+            </p>
+            <div class="actions">
+              <a class="button" href="https://github.com/deseti/nano-wizpay/blob/main/JUDGE-QUICKSTART.md">
+                Judge Quickstart
+                <span aria-hidden="true">-&gt;</span>
+              </a>
+              <a class="button secondary" href="https://api.wizpay.xyz">
+                Open Live API
+                <span aria-hidden="true">-&gt;</span>
+              </a>
+            </div>
+            <div class="status-line" aria-label="Project facts">
+              <span>Network: <strong>Arc Testnet</strong></span>
+              <span>Executor: <strong>Circle CLI</strong></span>
+              <span>Custody: <strong>User wallet</strong></span>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="Non-custodial execution flow">
+            <p class="diagram-title">Onchain transaction flow</p>
+            <svg viewBox="0 0 760 430" role="img" aria-labelledby="diagram-title diagram-desc">
+              <title id="diagram-title">Nano WizPay non-custodial orchestration flow</title>
+              <desc id="diagram-desc">
+                Agent calls Nano WizPay API, Circle CLI wallet executor signs and submits transactions to Arc Testnet,
+                then receipts return as verifiable proofs.
+              </desc>
+              <defs>
+                <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 z" fill="#2f7dff" />
+                </marker>
+              </defs>
+              <rect x="18" y="54" width="132" height="142" fill="#070d12" stroke="#35546a" />
+              <rect x="234" y="54" width="132" height="142" fill="#081621" stroke="#29c8ff" />
+              <rect x="450" y="54" width="132" height="142" fill="#070d12" stroke="#35546a" />
+              <rect x="626" y="54" width="116" height="142" fill="#070d12" stroke="#35546a" />
+
+              <text x="84" y="112" text-anchor="middle" fill="#f2f8fb" font-size="18">Agent</text>
+              <text x="300" y="102" text-anchor="middle" fill="#29c8ff" font-size="17">Nano</text>
+              <text x="300" y="126" text-anchor="middle" fill="#29c8ff" font-size="17">WizPay API</text>
+              <text x="516" y="98" text-anchor="middle" fill="#f2f8fb" font-size="16">Circle CLI</text>
+              <text x="516" y="121" text-anchor="middle" fill="#f2f8fb" font-size="16">Wallet Executor</text>
+              <text x="684" y="112" text-anchor="middle" fill="#f2f8fb" font-size="17">Arc Testnet</text>
+
+              <line x1="150" y1="100" x2="226" y2="100" stroke="#2f7dff" stroke-width="2" marker-end="url(#arrow)" />
+              <line x1="366" y1="100" x2="442" y2="100" stroke="#2f7dff" stroke-width="2" marker-end="url(#arrow)" />
+              <line x1="582" y1="100" x2="618" y2="100" stroke="#2f7dff" stroke-width="2" marker-end="url(#arrow)" />
+              <line x1="626" y1="154" x2="590" y2="154" stroke="#29c8ff" stroke-width="2" marker-end="url(#arrow)" />
+              <line x1="450" y1="154" x2="374" y2="154" stroke="#29c8ff" stroke-width="2" marker-end="url(#arrow)" />
+              <line x1="234" y1="154" x2="158" y2="154" stroke="#29c8ff" stroke-width="2" marker-end="url(#arrow)" />
+
+              <g fill="#8ba2ae" font-size="14">
+                <text x="22" y="252"><tspan fill="#29c8ff">1</tspan> Agent requests a paid workflow with x402-style payment intent.</text>
+                <text x="22" y="282"><tspan fill="#29c8ff">2</tspan> Nano WizPay verifies payment and builds calldata or commands.</text>
+                <text x="22" y="312"><tspan fill="#29c8ff">3</tspan> Circle CLI signs and submits transaction(s) from the configured wallet.</text>
+                <text x="22" y="342"><tspan fill="#29c8ff">4</tspan> Arc Testnet confirms execution and exposes receipts on Arcscan.</text>
+                <text x="22" y="372"><tspan fill="#29c8ff">5</tspan> Nano WizPay returns verifiable transaction proof to the agent.</text>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="proof-title">
+          <h2 id="proof-title">Latest proof highlights</h2>
+          <div class="proofs">
+            <article class="proof">
+              <div>
+                <h3>5 USDC -&gt; EURC swap</h3>
+                <p>
+                  Real onchain swap prepared through Nano WizPay and executed by the local Circle CLI wallet executor.
+                  Actual received: 4.251173 EURC.
+                </p>
+              </div>
+              <a class="tx" href="https://testnet.arcscan.app/tx/0xaa58ede3ce79805c229ab1885efdb480f0addd5137e73dc43213b28a9a0a5e5d">
+                executeSwap tx: 0xaa58...5e5d
+              </a>
+            </article>
+            <article class="proof">
+              <div>
+                <h3>5-recipient payroll</h3>
+                <p>
+                  Reference HERMES-PAYROLL-5-REAL-001: five payouts, 3 direct USDC payouts,
+                  2 USDC-&gt;EURC routed payouts, and a 0.003 USDC service fee.
+                </p>
+              </div>
+              <a class="tx" href="https://testnet.arcscan.app/tx/0xdfb50aaabcf0d5419426e275fb8a9bf33198e2cfc50530ce0df6af8a5c0adde2">
+                final payout tx: 0xdfb5...dde2
+              </a>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="api-title">
+          <h2 id="api-title">API surface</h2>
+          <div class="api">
+            <div class="endpoint-list" aria-label="Public endpoints">
+              <div><strong>GET</strong> /services</div>
+              <div><strong>GET</strong> /contracts/status</div>
+              <div><strong>POST</strong> /swap/quote</div>
+              <div><strong>POST</strong> /swap/prepare</div>
+              <div><strong>POST</strong> /payroll/plan</div>
+              <div><strong>POST</strong> /payroll/prepare</div>
+            </div>
+            <pre aria-label="Example API request"><code><span class="comment"># Read-only judge checks require no wallet executor.</span>
+curl -s https://api.wizpay.xyz/services
+
+<span class="comment"># Paid prepare endpoints return PAYMENT_REQUIRED until the service fee is paid.</span>
+curl -i https://api.wizpay.xyz/swap/prepare \
+  -H <span class="string">'content-type: application/json'</span> \
+  -d <span class="string">'{
+    "tokenIn": "USDC",
+    "tokenOut": "EURC",
+    "amountIn": "5",
+    "recipient": "0xa9914bca9123ba0079be8c968f632c0db6400fe7",
+    "slippageBps": 100
+  }'</span></code></pre>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="model-title">
+          <h2 id="model-title">Execution model</h2>
+          <div class="model">
+            <article class="model-step">
+              <span class="number">1</span>
+              <h3>Prepare</h3>
+              <p>Nano WizPay creates quotes, plans, calldata, and executor commands for the requested agent workflow.</p>
+            </article>
+            <article class="model-step">
+              <span class="number">2</span>
+              <h3>Pay</h3>
+              <p>The API verifies the x402-style service payment before returning executable transaction material.</p>
+            </article>
+            <article class="model-step">
+              <span class="number">3</span>
+              <h3>Execute</h3>
+              <p>Circle CLI is the official demo wallet executor. It signs and submits transactions from the configured wallet.</p>
+            </article>
+            <article class="model-step">
+              <span class="number">4</span>
+              <h3>Prove</h3>
+              <p>Confirmed Arc Testnet receipts and balances become judge-facing evidence for swaps and payroll.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="links-title">
+          <h2 id="links-title">Judge links</h2>
+          <div class="links">
+            <article class="link-card">
+              <h3>GitHub</h3>
+              <p>Public source, scripts, backend, judge quickstart, and proofs.</p>
+              <a href="https://github.com/deseti/nano-wizpay">Open repo -&gt;</a>
+            </article>
+            <article class="link-card">
+              <h3>Live API</h3>
+              <p>Production orchestration API for read-only checks and paid prepare flows.</p>
+              <a href="https://api.wizpay.xyz">Open API -&gt;</a>
+            </article>
+            <article class="link-card">
+              <h3>Quickstart</h3>
+              <p>Copy-paste judge checks for services, contracts, quotes, payroll plans, and prepare responses.</p>
+              <a href="https://github.com/deseti/nano-wizpay/blob/main/JUDGE-QUICKSTART.md">Read guide -&gt;</a>
+            </article>
+            <article class="link-card">
+              <h3>Proofs</h3>
+              <p>Latest verified real Arc Testnet swap and payroll transaction evidence.</p>
+              <a href="https://github.com/deseti/nano-wizpay/blob/main/docs/PROOFS.md">View proofs -&gt;</a>
+            </article>
+            <article class="link-card">
+              <h3>Docs</h3>
+              <p>Agent Connect documentation for the broader WizPay agent workflow.</p>
+              <a href="https://docs.wizpay.xyz/agent-connect">Open docs -&gt;</a>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>Nano <span class="accent">WizPay</span></span>
+        <span>Non-custodial. Verifiable. Built for autonomous agents on Arc Testnet.</span>
+      </footer>
+    </div>
+  </body>
+</html>
