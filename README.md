@@ -18,6 +18,34 @@ Judges can test read-only API calls without cloning, installing, or running anyt
 - `POST /payroll/plan`
 - unpaid `POST /swap/prepare`, which should return `PAYMENT_REQUIRED`
 
+## Prerequisites
+
+Read-only API checks:
+
+- No repo clone, install, or local server is required.
+- Recommended tools: `curl` and `jq`.
+
+Local development:
+
+- Node.js 20 or newer.
+- `npm`.
+- `git`.
+- Run `npm install`.
+- Run `npm run dev`.
+
+Real transaction demo:
+
+- Real onchain execution requires a wallet executor.
+- The official demo executor in this repo is Circle CLI.
+- Circle CLI must be installed using Circle's official documentation.
+- Circle CLI must be authenticated and configured.
+- Circle CLI must control a funded Arc Testnet wallet.
+- The wallet must have relevant testnet token balances such as USDC and EURC.
+- Verify the local executor with `circle --version` and `circle wallet --help`.
+- Then run `npm run demo:swap-real` and `npm run demo:payroll-real`.
+
+If Circle CLI or another wallet executor is not installed and configured, judges can still test read-only endpoints and unpaid prepare responses. Without a wallet executor, Nano WizPay cannot submit real onchain transactions from the judge's machine.
+
 ## Real Transaction Requirement
 
 `/services`, `/contracts/status`, `/swap/quote`, and `/payroll/plan` require no wallet executor. `/swap/prepare` and `/payroll/prepare` return `PAYMENT_REQUIRED` until the `0.003` USDC service fee is paid.
