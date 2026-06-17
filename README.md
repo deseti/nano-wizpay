@@ -37,14 +37,16 @@ Real transaction demo:
 
 - Real onchain execution requires a wallet executor.
 - The official demo executor in this repo is Circle CLI.
-- Circle CLI must be installed using Circle's official documentation.
+- Canteen ARC CLI, used for local/event tooling: `uv tool install git+https://github.com/the-canteen-dev/ARC-cli.git`.
+- Circle CLI, used as the official wallet executor: `npm install -g @circle-fin/cli`.
+- Circle CLI requires Node.js v20.18.2 or newer.
 - Circle CLI must be authenticated and configured.
 - Circle CLI must control a funded Arc Testnet wallet.
 - The wallet must have relevant testnet token balances such as USDC and EURC.
 - Verify the local executor with `circle --version` and `circle wallet --help`.
 - Then run `npm run demo:swap-real` and `npm run demo:payroll-real`.
 
-If Circle CLI or another wallet executor is not installed and configured, judges can still test read-only endpoints and unpaid prepare responses. Without a wallet executor, Nano WizPay cannot submit real onchain transactions from the judge's machine.
+These CLI tools are only needed for local/event tooling and real transaction demos. Judges can still test read-only endpoints and unpaid prepare responses without installing them. Without a wallet executor, Nano WizPay cannot submit real onchain transactions from the judge's machine.
 
 ## Real Transaction Requirement
 
@@ -53,6 +55,13 @@ If Circle CLI or another wallet executor is not installed and configured, judges
 Real onchain execution requires a wallet executor because Nano WizPay is non-custodial. Supported executor options include Circle CLI, Circle SDK/API, a viem or ethers signer, a smart account SDK, or a frontend wallet connector. The official end-to-end demo path in this repo uses Circle CLI as the wallet executor.
 
 Without a wallet executor, an agent can prepare transactions but cannot move funds onchain by only calling `https://api.wizpay.xyz`.
+
+## Latest Real Onchain Proofs
+
+The primary judge-facing proofs are in [Verified Proofs](docs/PROOFS.md). They were executed by a local Hermes agent using Circle CLI as the wallet executor and `api.wizpay.xyz` as the production orchestration API.
+
+- 5 USDC -> EURC swap: `executeSwap` tx https://testnet.arcscan.app/tx/0xaa58ede3ce79805c229ab1885efdb480f0addd5137e73dc43213b28a9a0a5e5d.
+- 5-recipient payroll: `HERMES-PAYROLL-5-REAL-001`, five payouts with 3 direct USDC payouts and 2 USDC->EURC routed payouts.
 
 ## Quick Start
 

@@ -1,6 +1,67 @@
 # Verified Arc Testnet Proofs
 
-These are the latest verified Nano WizPay demo transactions on Arc Testnet.
+This is the primary proof file for Nano WizPay judge review. The latest proofs below were executed by a local Hermes agent using Circle CLI as the wallet executor and `api.wizpay.xyz` as the production orchestration API.
+
+Nano WizPay is non-custodial: it prepared quotes, plans, calldata, and Circle CLI commands; the local wallet executor signed and submitted the real Arc Testnet transactions.
+
+Local/event tooling and real transaction demos use:
+
+```bash
+uv tool install git+https://github.com/the-canteen-dev/ARC-cli.git
+npm install -g @circle-fin/cli
+```
+
+Circle CLI requires Node.js v20.18.2 or newer. These tools are not required for read-only API checks such as `/services`, `/contracts/status`, `/swap/quote`, or `/payroll/plan`.
+
+## Latest Swap Proof: 5 USDC to EURC
+
+Primary judge-facing swap proof.
+
+| Field | Value |
+| --- | --- |
+| Flow | 5 USDC -> EURC swap |
+| Wallet | `0xa9914bca9123ba0079be8c968f632c0db6400fe7` |
+| Quote | 5 USDC -> 4.261829 EURC |
+| minAmountOut | 4.21921 EURC |
+| Actual received | 4.251173 EURC |
+| USDC balance | 35.192894 -> 30.189894 (-5.003) |
+| EURC balance | 4.373056 -> 8.624229 (+4.251173) |
+
+| Step | Arcscan |
+| --- | --- |
+| Service fee | https://testnet.arcscan.app/tx/0x58632caae2d2a13724c6e85c5d31ecce548eca0328f8d97946402b468f358897 |
+| Approve | https://testnet.arcscan.app/tx/0xc19400a869f2b78a16b468b3432fd3f9b9fff1302e68530f7261dde69d56c3a3 |
+| executeSwap | https://testnet.arcscan.app/tx/0xaa58ede3ce79805c229ab1885efdb480f0addd5137e73dc43213b28a9a0a5e5d |
+
+## Latest Payroll Proof: 5-recipient payroll
+
+Primary judge-facing payroll proof.
+
+| Field | Value |
+| --- | --- |
+| Flow | 5-recipient payroll |
+| Reference ID | `HERMES-PAYROLL-5-REAL-001` |
+| Payer wallet | `0xa9914bca9123ba0079be8c968f632c0db6400fe7` |
+| Total payouts | 5 |
+| Payroll input | 0.005 USDC total, using five payouts of 0.001 USDC input each |
+| Route mix | 3 direct USDC payouts and 2 USDC->EURC routed payouts |
+| Service fee | 0.003 USDC |
+| USDC balance | 35.200894 -> 35.192894 (-0.008) |
+| EURC balance | 4.373056 -> 4.373056 |
+
+| Step | Arcscan |
+| --- | --- |
+| Service fee | https://testnet.arcscan.app/tx/0xbe95a87f42e16bb3c59ffa295ca3c99f2ed5ac136fe199283a0fecd365a63655 |
+| Approve | https://testnet.arcscan.app/tx/0x3899f11e353738a7cc6301b14a44ee0e508cc8bda3b2e18a806a1e5997a4cde3 |
+| Payout 1 | https://testnet.arcscan.app/tx/0x02eef1a5f53fc24d1f935d35ee427e1c66a3c3dfe7cb7068ca625004bdc3366e |
+| Payout 2 | https://testnet.arcscan.app/tx/0xe93ba7285bbf83f917dfc4bbacfa04878a02086404f1cc88c6c40ff6e4e24222 |
+| Payout 3 | https://testnet.arcscan.app/tx/0x44b462fbb251e0d65e0123efde2aae6bcbd2b80b52129f58846d501f21b2a96a |
+| Payout 4 | https://testnet.arcscan.app/tx/0x1ae880b08928c9cc6a290c14340dd035c104da41bd07929a7014df5773b436aa |
+| Payout 5 | https://testnet.arcscan.app/tx/0xdfb50aaabcf0d5419426e275fb8a9bf33198e2cfc50530ce0df6af8a5c0adde2 |
+
+## Older Proofs
+
+These earlier verified demo transactions are retained for continuity. The latest swap and payroll sections above are the primary judge-facing proofs.
 
 | Flow | Step | Arcscan |
 | --- | --- | --- |
