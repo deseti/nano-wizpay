@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { config } from "./config.js";
 import { contractsRoutes } from "./routes/contracts.js";
+import { payrollRoutes } from "./routes/payroll.js";
 import { servicesRoutes } from "./routes/services.js";
 import { swapRoutes } from "./routes/swap.js";
 
@@ -19,6 +20,7 @@ await app.register(cors, { origin: true });
 await app.register(servicesRoutes);
 await app.register(contractsRoutes);
 await app.register(swapRoutes);
+await app.register(payrollRoutes);
 
 app.get("/health", async () => ({
   status: "ok",

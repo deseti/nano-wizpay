@@ -3,6 +3,7 @@ import { wizpaySwapExecutorAbi } from "../abi/wizpaySwapExecutor.js";
 import { xyloRouterAbi } from "../abi/xyloRouter.js";
 import { arcscanAddressUrl, config } from "../config.js";
 import { publicClient } from "../chain/client.js";
+import { getPayrollStatus } from "../chain/payroll.js";
 
 export async function contractsRoutes(app: FastifyInstance) {
   app.get("/contracts/status", async () => {
@@ -16,6 +17,7 @@ export async function contractsRoutes(app: FastifyInstance) {
       routerUsdc,
       routerEurc,
       routerFactory,
+      payroll,
     ] = await Promise.all([
       publicClient.readContract({
         address: config.contracts.executor,
@@ -65,6 +67,7 @@ export async function contractsRoutes(app: FastifyInstance) {
         abi: xyloRouterAbi,
         functionName: "factory",
       }),
+      getPayrollStatus(),
     ]);
 
     return {
@@ -100,6 +103,7 @@ export async function contractsRoutes(app: FastifyInstance) {
           arcscan: arcscanAddressUrl(config.tokens.eurc),
         },
       },
+      payroll,
     };
   });
 }

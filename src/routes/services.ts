@@ -34,6 +34,20 @@ export async function servicesRoutes(app: FastifyInstance) {
           router: arcscanAddressUrl(config.contracts.router),
         },
       },
+      {
+        id: "wizpay.nano.payroll.plan",
+        method: "POST",
+        path: "/payroll/plan",
+        price: "free",
+        chain: "arc-testnet",
+        supportedTokens: supportedTokens().map((token) => token.symbol),
+        payrollRouter: config.contracts.payrollRouter,
+        maxRecipientsPerBatch: config.payroll.maxRecipientsPerTx,
+        note: "Stage 1 planner only; execution prepare will be added later.",
+        arcscan: {
+          payrollRouter: arcscanAddressUrl(config.contracts.payrollRouter),
+        },
+      },
     ],
   }));
 }

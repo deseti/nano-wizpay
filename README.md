@@ -9,7 +9,8 @@ The backend charges a 0.003 USDC service fee for `POST /swap/prepare`. It does n
 ## MVP Scope
 
 - Supported swap tokens: USDC and EURC, in either direction.
-- Unsupported: USYC, payroll, new contracts, backend swap execution.
+- Supported payroll Stage 1 tokens: USDC and EURC for read-only planning.
+- Unsupported: USYC, paid payroll execution, new contracts, backend swap execution.
 - Primary payment path: Circle CLI / x402-compatible service payment.
 - Local demo fallback: a real Arc Testnet USDC transfer proven with `X-PAYMENT: <txHash>`.
 
@@ -28,7 +29,7 @@ Scope:
 - MVP uses `WizPaySwapExecutor` + `XyloRouter`.
 - Supported tokens: USDC and EURC.
 - No USYC in MVP.
-- No payroll in MVP.
+- Payroll is Stage 1 planner-only; no payroll execution is performed by the backend.
 - No backend custody.
 - Agent/user chooses token pair and amount.
 - Circle CLI is the primary agent-side wallet/payment path.
@@ -44,6 +45,7 @@ Scope:
 | `GET` | `/contracts/status` | Free | Live Arc Testnet executor/router status |
 | `POST` | `/swap/quote` | Free | Quote USDC/EURC or EURC/USDC for an agent amount |
 | `POST` | `/swap/prepare` | 0.003 USDC | Validate and return executable calldata |
+| `POST` | `/payroll/plan` | Free | Validate and split payroll payouts into planner batches |
 
 ## Local Dev
 
@@ -89,6 +91,46 @@ curl -s http://localhost:3000/swap/prepare \
   -d '{"tokenIn":"USDC","tokenOut":"EURC","amountIn":"1","recipient":"0x0000000000000000000000000000000000000001"}'
 ```
 
+Payroll plan:
+
+```bash
+curl -s http://localhost:3000/payroll/plan \
+  -H 'content-type: application/json' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "example-agent-reference-001",
+    "slippageBps": 100,
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }'
+```
+
+The addresses and amounts above are examples only. Agents must provide real recipients, amounts, and reference IDs.
+
+## Payroll Module Roadmap
+
+- Stage 1: read-only payroll contract inspector and dynamic payroll batch planner.
+- Stage 2: paid `/payroll/prepare` that returns execution data for an agent wallet.
+- Stage 3: payroll agent script for Circle CLI / agent wallet flows.
+- No hardcoded screenshot values; screenshots are UX/proof references only.
+- Batch limit: 50 recipients per transaction.
+- Backend does not custody payroll funds, sign payroll transactions, or execute payroll calls.
+
 ## Treasury Agent
 
 ```bash
@@ -114,6 +156,7 @@ PAYMENT_MODE=txhash X_PAYMENT=0x... npm run agent:treasury -- --tokenIn=EURC --t
 - Arcscan: `https://testnet.arcscan.app`
 - `WizPaySwapExecutor`: `0x17685466759f9Cde06f0DCbB5464164ABe541eFA`
 - `XyloRouter`: `0x73742278c31a76dBb0D2587d03ef92E6E2141023`
+- `WizPay Payroll Router`: `0x87ACE45582f45cC81AC1E627E875AE84cbd75946`
 - `USDC`: `0x3600000000000000000000000000000000000000`
 - `EURC`: `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a`
 - Service fee collector: `0x32F251fc36A1174901124589EAC2d4E391816F69`

@@ -28,6 +28,10 @@ export const config = {
       "XYLO_ROUTER",
       "0x73742278c31a76dBb0D2587d03ef92E6E2141023",
     ),
+    payrollRouter: address(
+      "WIZPAY_PAYROLL_ROUTER",
+      "0x87ACE45582f45cC81AC1E627E875AE84cbd75946",
+    ),
   },
   tokens: {
     usdc: address("USDC_ADDRESS", "0x3600000000000000000000000000000000000000"),
@@ -43,6 +47,9 @@ export const config = {
   swaps: {
     defaultSlippageBps: Number(optional("DEFAULT_SLIPPAGE_BPS", "100")),
     deadlineSeconds: Number(optional("SWAP_DEADLINE_SECONDS", "600")),
+  },
+  payroll: {
+    maxRecipientsPerTx: Number(optional("MAX_PAYROLL_RECIPIENTS_PER_TX", "50")),
   },
 };
 

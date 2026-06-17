@@ -27,6 +27,8 @@ curl -s http://localhost:3000/services | python3 -m json.tool
 curl -s http://localhost:3000/contracts/status | python3 -m json.tool
 ```
 
+The response includes the verified swap executor/router status and a read-only `payroll` section for the WizPay Payroll Router.
+
 ## 4. Quote Example
 
 EURC -> USDC with amount `1` is an example only. The API accepts agent-provided `tokenIn`, `tokenOut`, `amountIn`, `recipient`, and `slippageBps`.
@@ -75,6 +77,46 @@ Use the `circleCli.executeSwapCommand` value from the paid `/swap/prepare` respo
 ```bash
 circle wallet balance --address <AGENT_WALLET_ADDRESS> --chain ARC-TESTNET
 ```
+
+## Payroll Stage 1 Planner
+
+This endpoint is free and planner-only. It validates dynamic agent-provided payroll intent data, splits payouts into batches of at most 50 recipients, may include read-only estimates, and does not return calldata or execute transactions.
+
+```bash
+curl -s http://localhost:3000/payroll/plan \
+  -H 'content-type: application/json' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "demo-agent-reference-001",
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }' | python3 -m json.tool
+```
+
+The recipients, amounts, and reference ID above are examples only.
+
+## Payroll Module Roadmap
+
+- Stage 1: inspector + planner.
+- Stage 2: paid `/payroll/prepare`.
+- Stage 3: payroll agent script.
+- No hardcoded screenshot values.
+- Batch limit: 50 recipients per transaction.
 
 ## Proof Transactions
 
