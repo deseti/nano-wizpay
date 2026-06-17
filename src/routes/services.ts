@@ -48,6 +48,20 @@ export async function servicesRoutes(app: FastifyInstance) {
           payrollRouter: arcscanAddressUrl(config.contracts.payrollRouter),
         },
       },
+      {
+        id: "wizpay.nano.payroll.prepare",
+        method: "POST",
+        path: "/payroll/prepare",
+        price: {
+          amount: config.serviceFee.usdc,
+          currency: "USDC",
+        },
+        chain: "arc-testnet",
+        supportedTokens: supportedTokens().map((token) => token.symbol),
+        paymentModel: "402 USDC service fee, Circle CLI compatible",
+        maxRecipientsPerBatch: config.payroll.maxRecipientsPerTx,
+        note: "Paid payroll execution planner. Returns approval and batchRouteAndPay commands only; does not custody or execute funds.",
+      },
     ],
   }));
 }

@@ -117,6 +117,79 @@ The recipients, amounts, and reference ID above are examples only.
 - Stage 3: payroll agent script.
 - No hardcoded screenshot values.
 - Batch limit: 50 recipients per transaction.
+- Service fee currently reuses `SERVICE_FEE_USDC=0.003`.
+- No backend custody, backend signing, or backend payroll execution.
+
+## Payroll Stage 2 Prepare
+
+This endpoint returns `402 Payment Required` until the agent pays the service fee and retries with `X-PAYMENT`. The paid response contains a token approval command, dynamic batch count, calldata per batch, and one Circle CLI command per batch.
+
+```bash
+curl -i http://localhost:3000/payroll/prepare \
+  -H 'content-type: application/json' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "demo-agent-reference-002",
+    "payer": "<PAYER_WALLET_ADDRESS>",
+    "slippageBps": 100,
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }'
+```
+
+Pay the fee:
+
+```bash
+circle wallet transfer 0x32F251fc36A1174901124589EAC2d4E391816F69 --amount 0.003 --address <PAYER_WALLET_ADDRESS> --chain ARC-TESTNET --token 0x3600000000000000000000000000000000000000
+```
+
+Retry:
+
+```bash
+curl -s http://localhost:3000/payroll/prepare \
+  -H 'content-type: application/json' \
+  -H 'X-PAYMENT: <SERVICE_FEE_TX_HASH>' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "demo-agent-reference-002",
+    "payer": "<PAYER_WALLET_ADDRESS>",
+    "slippageBps": 100,
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }' | python3 -m json.tool
+```
+
+Use `approval.circleCliCommand`, then execute each `batches[].circleCliCommand` from the payer wallet. Replaying the same `X-PAYMENT` tx hash should not unlock another prepare response.
 
 ## Proof Transactions
 

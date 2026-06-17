@@ -103,3 +103,37 @@ export const wizpayPayrollRouterAbi = [
     outputs: [],
   },
 ] as const;
+
+export const wizpayPayrollRouterSingleTokenOutAbi = [
+  {
+    type: "function",
+    name: "batchRouteAndPay",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenIn", type: "address" },
+      { name: "tokenOut", type: "address" },
+      { name: "recipients", type: "address[]" },
+      { name: "amountsIn", type: "uint256[]" },
+      { name: "minAmountsOut", type: "uint256[]" },
+      { name: "referenceId", type: "string" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+export const wizpayPayrollRouterMultiTokenOutAbi = [
+  {
+    type: "function",
+    name: "batchRouteAndPay",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenIn", type: "address" },
+      { name: "tokenOuts", type: "address[]" },
+      { name: "recipients", type: "address[]" },
+      { name: "amountsIn", type: "uint256[]" },
+      { name: "minAmountsOut", type: "uint256[]" },
+      { name: "referenceId", type: "string" },
+    ],
+    outputs: [],
+  },
+] as const;

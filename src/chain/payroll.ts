@@ -1,5 +1,9 @@
-import { getAddress, isAddress, type Address } from "viem";
-import { wizpayPayrollRouterAbi } from "../abi/wizpayPayrollRouter.js";
+import { encodeFunctionData, getAddress, isAddress, type Address } from "viem";
+import {
+  wizpayPayrollRouterAbi,
+  wizpayPayrollRouterMultiTokenOutAbi,
+  wizpayPayrollRouterSingleTokenOutAbi,
+} from "../abi/wizpayPayrollRouter.js";
 import { arcscanAddressUrl, config } from "../config.js";
 import { publicClient } from "./client.js";
 import {
@@ -23,6 +27,10 @@ export type NormalizedPayrollIntent = {
   payouts: NormalizedPayout[];
 };
 
+export type NormalizedPayrollPrepareIntent = NormalizedPayrollIntent & {
+  payer: Address;
+};
+
 type PayrollBatch = {
   batchIndex: number;
   payouts: NormalizedPayout[];
@@ -40,8 +48,28 @@ type PayrollEstimate =
       error: string;
     };
 
+type StrictPayrollEstimate = {
+  estimatedAmountsOut: readonly bigint[];
+  totalEstimatedOut: bigint;
+  totalFees: bigint;
+};
+
+const PAYROLL_PREPARE_SERVICE_ID = "wizpay.nano.payroll.prepare";
+const SINGLE_TOKEN_OUT_SIGNATURE =
+  "batchRouteAndPay(address,address,address[],uint256[],uint256[],string)";
+const MULTI_TOKEN_OUT_SIGNATURE =
+  "batchRouteAndPay(address,address[],address[],uint256[],uint256[],string)";
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "estimate unavailable";
+}
+
+function jsonArrayForCli(values: readonly string[]): string {
+  return `'${JSON.stringify(values)}'`;
+}
+
+function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 export async function getPayrollStatus() {
@@ -161,27 +189,48 @@ export function normalizePayrollIntent(body: unknown): NormalizedPayrollIntent {
   };
 }
 
+export function normalizePayrollPrepareIntent(body: unknown): NormalizedPayrollPrepareIntent {
+  const intent = normalizePayrollIntent(body);
+  const input = body as Record<string, unknown>;
+  if (typeof input.payer !== "string" || !isAddress(input.payer)) {
+    throw new Error("payer must be a valid address");
+  }
+
+  return {
+    ...intent,
+    payer: getAddress(input.payer),
+  };
+}
+
+async function readBatchEstimateValues(
+  tokenIn: TokenMetadata,
+  payouts: NormalizedPayout[],
+): Promise<StrictPayrollEstimate> {
+  const [estimatedAmountsOut, totalEstimatedOut, totalFees] = await publicClient.readContract({
+    address: config.contracts.payrollRouter,
+    abi: wizpayPayrollRouterAbi,
+    functionName: "getBatchEstimatedOutputs",
+    args: [
+      tokenIn.address,
+      payouts.map((payout) => payout.tokenOut.address),
+      payouts.map((payout) => payout.amountIn),
+    ],
+  });
+
+  return { estimatedAmountsOut, totalEstimatedOut, totalFees };
+}
+
 async function readBatchEstimate(
   tokenIn: TokenMetadata,
   payouts: NormalizedPayout[],
 ): Promise<PayrollEstimate> {
   try {
-    const [estimatedAmountsOut, totalEstimatedOut, totalFees] = await publicClient.readContract({
-      address: config.contracts.payrollRouter,
-      abi: wizpayPayrollRouterAbi,
-      functionName: "getBatchEstimatedOutputs",
-      args: [
-        tokenIn.address,
-        payouts.map((payout) => payout.tokenOut.address),
-        payouts.map((payout) => payout.amountIn),
-      ],
-    });
-
+    const estimate = await readBatchEstimateValues(tokenIn, payouts);
     return {
       available: true,
-      estimatedAmountsOut: estimatedAmountsOut.map((amount) => amount.toString()),
-      totalEstimatedOut: totalEstimatedOut.toString(),
-      totalFees: totalFees.toString(),
+      estimatedAmountsOut: estimate.estimatedAmountsOut.map((amount) => amount.toString()),
+      totalEstimatedOut: estimate.totalEstimatedOut.toString(),
+      totalFees: estimate.totalFees.toString(),
     };
   } catch (error) {
     return {
@@ -207,15 +256,14 @@ function splitBatches(payouts: NormalizedPayout[]): PayrollBatch[] {
   return batches;
 }
 
-export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
-  const batches = splitBatches(intent.payouts);
-  const totalAmountIn = intent.payouts.reduce((total, payout) => total + payout.amountIn, 0n);
+function payrollTotals(payouts: NormalizedPayout[], tokenIn: TokenMetadata) {
+  const totalAmountIn = payouts.reduce((total, payout) => total + payout.amountIn, 0n);
   const distributionByToken = new Map<
     string,
     { tokenOut: TokenMetadata; recipientCount: number; totalAmountIn: bigint }
   >();
 
-  for (const payout of intent.payouts) {
+  for (const payout of payouts) {
     const current = distributionByToken.get(payout.tokenOut.symbol) ?? {
       tokenOut: payout.tokenOut,
       recipientCount: 0,
@@ -225,6 +273,23 @@ export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
     current.totalAmountIn += payout.amountIn;
     distributionByToken.set(payout.tokenOut.symbol, current);
   }
+
+  return {
+    totalAmountIn,
+    distribution: Array.from(distributionByToken.values()).map((entry) => ({
+      tokenOut: entry.tokenOut.symbol,
+      recipientCount: entry.recipientCount,
+      totalAmountIn: {
+        human: formatTokenAmount(entry.totalAmountIn, tokenIn),
+        baseUnits: entry.totalAmountIn.toString(),
+      },
+    })),
+  };
+}
+
+export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
+  const batches = splitBatches(intent.payouts);
+  const totals = payrollTotals(intent.payouts, intent.tokenIn);
 
   return {
     service: "wizpay.nano.payroll.plan",
@@ -237,17 +302,10 @@ export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
     batchCount: batches.length,
     slippageBps: intent.slippageBps,
     totalAmountIn: {
-      human: formatTokenAmount(totalAmountIn, intent.tokenIn),
-      baseUnits: totalAmountIn.toString(),
+      human: formatTokenAmount(totals.totalAmountIn, intent.tokenIn),
+      baseUnits: totals.totalAmountIn.toString(),
     },
-    distribution: Array.from(distributionByToken.values()).map((entry) => ({
-      tokenOut: entry.tokenOut.symbol,
-      recipientCount: entry.recipientCount,
-      totalAmountIn: {
-        human: formatTokenAmount(entry.totalAmountIn, intent.tokenIn),
-        baseUnits: entry.totalAmountIn.toString(),
-      },
-    })),
+    distribution: totals.distribution,
     batches: await Promise.all(
       batches.map(async (batch) => {
         const tokenOutAddresses = batch.payouts.map((payout) => payout.tokenOut.address);
@@ -272,6 +330,141 @@ export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
       "Validated tokenIn, tokenOuts, recipients, and amounts",
       `Split payouts into Arc-safe batches of max ${config.payroll.maxRecipientsPerTx} recipients`,
       "No execution performed in Stage 1",
+    ],
+  };
+}
+
+export async function preparePayrollBatches(intent: NormalizedPayrollPrepareIntent) {
+  const batches = splitBatches(intent.payouts);
+  const totals = payrollTotals(intent.payouts, intent.tokenIn);
+  const preparedBatches = await Promise.all(
+    batches.map(async (batch) => {
+      const tokenOutAddresses = batch.payouts.map((payout) => payout.tokenOut.address);
+      const recipients = batch.payouts.map((payout) => payout.recipient);
+      const amountsIn = batch.payouts.map((payout) => payout.amountIn);
+      const allSameTokenOut = tokenOutAddresses.every(
+        (address) => address.toLowerCase() === tokenOutAddresses[0].toLowerCase(),
+      );
+      const estimate = await readBatchEstimateValues(intent.tokenIn, batch.payouts).catch((error) => {
+        throw new Error(`batch ${batch.batchIndex} estimates unavailable: ${errorMessage(error)}`);
+      });
+
+      if (estimate.estimatedAmountsOut.length !== batch.payouts.length) {
+        throw new Error(`batch ${batch.batchIndex} estimate count did not match payout count`);
+      }
+
+      const minAmountsOut = estimate.estimatedAmountsOut.map(
+        (amount) => (amount * BigInt(10_000 - intent.slippageBps)) / 10_000n,
+      );
+      const functionSignature = allSameTokenOut
+        ? SINGLE_TOKEN_OUT_SIGNATURE
+        : MULTI_TOKEN_OUT_SIGNATURE;
+      const amountStrings = amountsIn.map((amount) => amount.toString());
+      const minAmountStrings = minAmountsOut.map((amount) => amount.toString());
+
+      const executionArgs = allSameTokenOut
+        ? {
+            tokenIn: intent.tokenIn.address,
+            tokenOut: tokenOutAddresses[0],
+            recipients,
+            amountsIn: amountStrings,
+            minAmountsOut: minAmountStrings,
+            referenceId: intent.referenceId,
+          }
+        : {
+            tokenIn: intent.tokenIn.address,
+            tokenOuts: tokenOutAddresses,
+            recipients,
+            amountsIn: amountStrings,
+            minAmountsOut: minAmountStrings,
+            referenceId: intent.referenceId,
+          };
+
+      const calldata = allSameTokenOut
+        ? encodeFunctionData({
+            abi: wizpayPayrollRouterSingleTokenOutAbi,
+            functionName: "batchRouteAndPay",
+            args: [
+              intent.tokenIn.address,
+              tokenOutAddresses[0],
+              recipients,
+              amountsIn,
+              minAmountsOut,
+              intent.referenceId,
+            ],
+          })
+        : encodeFunctionData({
+            abi: wizpayPayrollRouterMultiTokenOutAbi,
+            functionName: "batchRouteAndPay",
+            args: [
+              intent.tokenIn.address,
+              tokenOutAddresses,
+              recipients,
+              amountsIn,
+              minAmountsOut,
+              intent.referenceId,
+            ],
+          });
+
+      const circleCliCommand = allSameTokenOut
+        ? `circle wallet execute "${functionSignature}" ${intent.tokenIn.address} ${tokenOutAddresses[0]} ${jsonArrayForCli(recipients)} ${jsonArrayForCli(amountStrings)} ${jsonArrayForCli(minAmountStrings)} ${shellSingleQuote(intent.referenceId)} --contract ${config.contracts.payrollRouter} --address ${intent.payer} --chain ARC-TESTNET`
+        : `circle wallet execute "${functionSignature}" ${intent.tokenIn.address} ${jsonArrayForCli(tokenOutAddresses)} ${jsonArrayForCli(recipients)} ${jsonArrayForCli(amountStrings)} ${jsonArrayForCli(minAmountStrings)} ${shellSingleQuote(intent.referenceId)} --contract ${config.contracts.payrollRouter} --address ${intent.payer} --chain ARC-TESTNET`;
+
+      return {
+        batchIndex: batch.batchIndex,
+        recipientCount: batch.payouts.length,
+        allSameTokenOut,
+        recommendedOverload: allSameTokenOut ? "single-tokenOut" : "multi-tokenOut",
+        functionSignature,
+        executionArgs,
+        calldata,
+        circleCliCommand,
+        estimates: {
+          estimatedAmountsOut: estimate.estimatedAmountsOut.map((amount) => amount.toString()),
+          totalEstimatedOut: estimate.totalEstimatedOut.toString(),
+          totalFees: estimate.totalFees.toString(),
+        },
+      };
+    }),
+  );
+
+  return {
+    service: PAYROLL_PREPARE_SERVICE_ID,
+    chain: "arc-testnet",
+    payrollRouter: config.contracts.payrollRouter,
+    referenceId: intent.referenceId,
+    payer: intent.payer,
+    tokenIn: intent.tokenIn,
+    recipientCount: intent.payouts.length,
+    maxRecipientsPerBatch: config.payroll.maxRecipientsPerTx,
+    batchCount: batches.length,
+    slippageBps: intent.slippageBps,
+    totalAmountIn: {
+      human: formatTokenAmount(totals.totalAmountIn, intent.tokenIn),
+      baseUnits: totals.totalAmountIn.toString(),
+    },
+    distribution: totals.distribution,
+    approval: {
+      token: intent.tokenIn.symbol,
+      tokenAddress: intent.tokenIn.address,
+      spender: config.contracts.payrollRouter,
+      amount: {
+        human: formatTokenAmount(totals.totalAmountIn, intent.tokenIn),
+        baseUnits: totals.totalAmountIn.toString(),
+      },
+      circleCliCommand: `circle wallet execute "approve(address,uint256)" ${config.contracts.payrollRouter} ${totals.totalAmountIn.toString()} --contract ${intent.tokenIn.address} --address ${intent.payer} --chain ARC-TESTNET`,
+    },
+    batches: preparedBatches,
+    arcscan: {
+      payrollRouter: arcscanAddressUrl(config.contracts.payrollRouter),
+      payer: arcscanAddressUrl(intent.payer),
+    },
+    demoTrace: [
+      "Payment verified",
+      "Payroll execution plan unlocked",
+      "Approve tokenIn to WizPay payroll router",
+      "Execute each batchRouteAndPay command from the payer wallet",
+      "No backend execution performed",
     ],
   };
 }

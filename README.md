@@ -1,16 +1,16 @@
 # WizPay Nano
 
-WizPay Nano is a paid swap execution-planning service for AI treasury agents on Arc Testnet.
+WizPay Nano is a paid swap and payroll execution-planning service for AI treasury agents on Arc Testnet.
 
 Agents choose `tokenIn`, `tokenOut`, `amountIn`, `recipient`, and optional `slippageBps`. WizPay Nano quotes through `XyloRouter`, validates `WizPaySwapExecutor` onchain state, and returns approval details plus encoded `executeSwap(...)` calldata for the agent wallet to execute directly.
 
-The backend charges a 0.003 USDC service fee for `POST /swap/prepare`. It does not custody user swap funds, does not decide the swap amount, does not sign transactions, and does not deploy contracts.
+The backend charges a 0.003 USDC service fee for paid prepare endpoints. It does not custody user funds, does not decide swap or payroll amounts, does not sign transactions, and does not deploy contracts.
 
 ## MVP Scope
 
 - Supported swap tokens: USDC and EURC, in either direction.
-- Supported payroll Stage 1 tokens: USDC and EURC for read-only planning.
-- Unsupported: USYC, paid payroll execution, new contracts, backend swap execution.
+- Supported payroll tokens: USDC and EURC for planning and paid execution preparation.
+- Unsupported: USYC, backend payroll execution, new contracts, backend swap execution.
 - Primary payment path: Circle CLI / x402-compatible service payment.
 - Local demo fallback: a real Arc Testnet USDC transfer proven with `X-PAYMENT: <txHash>`.
 
@@ -29,7 +29,7 @@ Scope:
 - MVP uses `WizPaySwapExecutor` + `XyloRouter`.
 - Supported tokens: USDC and EURC.
 - No USYC in MVP.
-- Payroll is Stage 1 planner-only; no payroll execution is performed by the backend.
+- Payroll prepare returns approval and `batchRouteAndPay(...)` execution data only; no payroll execution is performed by the backend.
 - No backend custody.
 - Agent/user chooses token pair and amount.
 - Circle CLI is the primary agent-side wallet/payment path.
@@ -46,6 +46,7 @@ Scope:
 | `POST` | `/swap/quote` | Free | Quote USDC/EURC or EURC/USDC for an agent amount |
 | `POST` | `/swap/prepare` | 0.003 USDC | Validate and return executable calldata |
 | `POST` | `/payroll/plan` | Free | Validate and split payroll payouts into planner batches |
+| `POST` | `/payroll/prepare` | 0.003 USDC | Return payroll approval plus batch calldata/CLI commands |
 
 ## Local Dev
 
@@ -122,6 +123,77 @@ curl -s http://localhost:3000/payroll/plan \
 
 The addresses and amounts above are examples only. Agents must provide real recipients, amounts, and reference IDs.
 
+Payroll prepare without payment returns `402 Payment Required`:
+
+```bash
+curl -i http://localhost:3000/payroll/prepare \
+  -H 'content-type: application/json' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "example-agent-reference-002",
+    "payer": "0x0000000000000000000000000000000000000009",
+    "slippageBps": 100,
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }'
+```
+
+Pay the current service fee, then retry with `X-PAYMENT`:
+
+```bash
+circle wallet transfer 0x32F251fc36A1174901124589EAC2d4E391816F69 \
+  --amount 0.003 \
+  --address <PAYER_WALLET_ADDRESS> \
+  --chain ARC-TESTNET \
+  --token 0x3600000000000000000000000000000000000000
+```
+
+```bash
+curl -s http://localhost:3000/payroll/prepare \
+  -H 'content-type: application/json' \
+  -H 'X-PAYMENT: <SERVICE_FEE_TX_HASH>' \
+  -d '{
+    "tokenIn": "USDC",
+    "referenceId": "example-agent-reference-002",
+    "payer": "<PAYER_WALLET_ADDRESS>",
+    "slippageBps": 100,
+    "payouts": [
+      {
+        "recipient": "0x0000000000000000000000000000000000000001",
+        "tokenOut": "USDC",
+        "amountIn": "1.25"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000002",
+        "tokenOut": "EURC",
+        "amountIn": "2.50"
+      },
+      {
+        "recipient": "0x0000000000000000000000000000000000000003",
+        "tokenOut": "EURC",
+        "amountIn": "3.75"
+      }
+    ]
+  }'
+```
+
+The paid response includes a token approval command, dynamic batch count, per-batch calldata, per-batch Circle CLI commands, and `minAmountsOut` computed from live payroll router estimates plus slippage. Each service-fee tx hash unlocks one prepare response; replaying the same `X-PAYMENT` hash is rejected by the same payment verifier used for `/swap/prepare`.
+
 ## Payroll Module Roadmap
 
 - Stage 1: read-only payroll contract inspector and dynamic payroll batch planner.
@@ -129,6 +201,7 @@ The addresses and amounts above are examples only. Agents must provide real reci
 - Stage 3: payroll agent script for Circle CLI / agent wallet flows.
 - No hardcoded screenshot values; screenshots are UX/proof references only.
 - Batch limit: 50 recipients per transaction.
+- Service fee currently reuses `SERVICE_FEE_USDC=0.003`.
 - Backend does not custody payroll funds, sign payroll transactions, or execute payroll calls.
 
 ## Treasury Agent
