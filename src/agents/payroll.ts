@@ -57,6 +57,16 @@ type PayrollPrepareResponse = {
     circleCliCommand?: string;
     calldata?: string;
   }>;
+  circleCliFallback?: {
+    reason?: string;
+    mode?: string;
+    commandCount?: number;
+    commands?: Array<{
+      payoutIndex?: number;
+      batchIndex?: number;
+      circleCliCommand?: string;
+    }>;
+  };
   demoTrace?: string[];
 };
 
@@ -213,6 +223,18 @@ function printPaidPrepare(prepare: PayrollPrepareResponse) {
     console.log(`batch ${batch.batchIndex ?? "?"}:`);
     console.log(batch.circleCliCommand ?? "batch command unavailable");
     console.log(`calldataLength: ${batch.calldata?.length ?? 0}`);
+  }
+
+  printSection("Circle CLI Fallback");
+  console.log(
+    prepare.circleCliFallback?.reason ??
+      "Use scalar routeAndPay commands if Circle CLI fails on array parameters.",
+  );
+  console.log(`mode: ${prepare.circleCliFallback?.mode ?? "unknown"}`);
+  console.log(`commandCount: ${prepare.circleCliFallback?.commandCount ?? 0}`);
+  for (const command of prepare.circleCliFallback?.commands ?? []) {
+    console.log(`payout ${command.payoutIndex ?? "?"} / batch ${command.batchIndex ?? "?"}:`);
+    console.log(command.circleCliCommand ?? "fallback command unavailable");
   }
 
   printSection("Demo Trace");

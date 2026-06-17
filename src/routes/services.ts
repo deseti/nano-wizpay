@@ -60,7 +60,7 @@ export async function servicesRoutes(app: FastifyInstance) {
         supportedTokens: supportedTokens().map((token) => token.symbol),
         paymentModel: "402 USDC service fee, Circle CLI compatible",
         maxRecipientsPerBatch: config.payroll.maxRecipientsPerTx,
-        note: "Paid payroll execution planner. Returns approval and batchRouteAndPay commands only; does not custody or execute funds.",
+        note: "Returns batch calldata plus Circle CLI routeAndPay fallback commands; does not custody or execute funds.",
       },
     ],
   }));

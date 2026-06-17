@@ -76,6 +76,19 @@ export const wizpayPayrollRouterAbi = [
   },
   {
     type: "function",
+    name: "routeAndPay",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenIn", type: "address" },
+      { name: "tokenOut", type: "address" },
+      { name: "amountIn", type: "uint256" },
+      { name: "minAmountOut", type: "uint256" },
+      { name: "recipient", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "batchRouteAndPay",
     stateMutability: "nonpayable",
     inputs: [

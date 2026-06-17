@@ -78,6 +78,7 @@ export async function payrollRoutes(app: FastifyInstance) {
         distribution: prepared.distribution,
         approval: prepared.approval,
         batches: prepared.batches,
+        circleCliFallback: prepared.circleCliFallback,
         arcscan: prepared.arcscan,
         demoTrace: prepared.demoTrace,
       };

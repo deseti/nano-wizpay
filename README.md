@@ -29,7 +29,7 @@ Scope:
 - MVP uses `WizPaySwapExecutor` + `XyloRouter`.
 - Supported tokens: USDC and EURC.
 - No USYC in MVP.
-- Payroll prepare returns approval and `batchRouteAndPay(...)` execution data only; no payroll execution is performed by the backend.
+- Payroll prepare returns approval, `batchRouteAndPay(...)` calldata, and Circle CLI-compatible scalar fallback commands; no payroll execution is performed by the backend.
 - No backend custody.
 - Agent/user chooses token pair and amount.
 - Circle CLI is the primary agent-side wallet/payment path.
@@ -46,7 +46,7 @@ Scope:
 | `POST` | `/swap/quote` | Free | Quote USDC/EURC or EURC/USDC for an agent amount |
 | `POST` | `/swap/prepare` | 0.003 USDC | Validate and return executable calldata |
 | `POST` | `/payroll/plan` | Free | Validate and split payroll payouts into planner batches |
-| `POST` | `/payroll/prepare` | 0.003 USDC | Return payroll approval plus batch calldata/CLI commands |
+| `POST` | `/payroll/prepare` | 0.003 USDC | Return payroll approval, batch calldata, and scalar fallback CLI commands |
 
 ## Local Dev
 
@@ -192,7 +192,19 @@ curl -s http://localhost:3000/payroll/prepare \
   }'
 ```
 
-The paid response includes a token approval command, dynamic batch count, per-batch calldata, per-batch Circle CLI commands, and `minAmountsOut` computed from live payroll router estimates plus slippage. Each service-fee tx hash unlocks one prepare response; replaying the same `X-PAYMENT` hash is rejected by the same payment verifier used for `/swap/prepare`.
+The paid response includes a token approval command, dynamic batch count, per-batch calldata, per-batch Circle CLI commands, scalar `routeAndPay(...)` fallback commands, and `minAmountsOut` computed from live payroll router estimates plus slippage. Each service-fee tx hash unlocks one prepare response; replaying the same `X-PAYMENT` hash is rejected by the same payment verifier used for `/swap/prepare`.
+
+## Payroll Circle CLI Compatibility
+
+`batchRouteAndPay(...)` remains the primary execution plan for SDK and frontend executors because `/payroll/prepare` returns typed execution args and calldata for every dynamic batch. During real Circle CLI testing, Circle CLI had trouble estimating overloaded functions with array arguments, including both `batchRouteAndPay` overloads.
+
+For Circle CLI users, `/payroll/prepare` also returns `circleCliFallback.commands`: one scalar `routeAndPay(address,address,uint256,uint256,address)` command per payout. These fallback commands use the same live estimates and slippage-derived `minAmountOut` values as the batch plan. Approval remains a single approval for total payroll `amountIn`.
+
+Verified scalar fallback proof:
+
+- Payroll `routeAndPay` success tx: https://testnet.arcscan.app/tx/0x536d83f722873e003191de7cdccd4fb075168be1aeb2fc073c8ae406bfa84878
+
+Do not treat Circle CLI batch execution as verified. The batch plan and calldata are generated; scalar fallback has been verified with Circle CLI.
 
 ## Payroll Module Roadmap
 
@@ -252,7 +264,7 @@ npm run agent:payroll
 ```
 
 - The agent retries `/payroll/prepare` with `X-PAYMENT`.
-- The agent prints `approval.circleCliCommand` and each `batchRouteAndPay(...)` command.
+- The agent prints `approval.circleCliCommand`, each `batchRouteAndPay(...)` command, and scalar `routeAndPay(...)` fallback commands.
 - No execution happens; a human or agent wallet decides whether to run the printed commands.
 
 For custom payloads, set `PAYROLL_INTENT_JSON` to a payroll intent JSON object. The script injects `PAYROLL_PAYER_ADDRESS` as the payer. Keep payloads dynamic: no hardcoded screenshot values, no USYC, and max 50 recipients per batch.

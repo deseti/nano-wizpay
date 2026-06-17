@@ -59,6 +59,7 @@ const SINGLE_TOKEN_OUT_SIGNATURE =
   "batchRouteAndPay(address,address,address[],uint256[],uint256[],string)";
 const MULTI_TOKEN_OUT_SIGNATURE =
   "batchRouteAndPay(address,address[],address[],uint256[],uint256[],string)";
+const ROUTE_AND_PAY_SIGNATURE = "routeAndPay(address,address,uint256,uint256,address)";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "estimate unavailable";
@@ -337,7 +338,7 @@ export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
 export async function preparePayrollBatches(intent: NormalizedPayrollPrepareIntent) {
   const batches = splitBatches(intent.payouts);
   const totals = payrollTotals(intent.payouts, intent.tokenIn);
-  const preparedBatches = await Promise.all(
+  const prepared = await Promise.all(
     batches.map(async (batch) => {
       const tokenOutAddresses = batch.payouts.map((payout) => payout.tokenOut.address);
       const recipients = batch.payouts.map((payout) => payout.recipient);
@@ -410,23 +411,43 @@ export async function preparePayrollBatches(intent: NormalizedPayrollPrepareInte
         ? `circle wallet execute "${functionSignature}" ${intent.tokenIn.address} ${tokenOutAddresses[0]} ${jsonArrayForCli(recipients)} ${jsonArrayForCli(amountStrings)} ${jsonArrayForCli(minAmountStrings)} ${shellSingleQuote(intent.referenceId)} --contract ${config.contracts.payrollRouter} --address ${intent.payer} --chain ARC-TESTNET`
         : `circle wallet execute "${functionSignature}" ${intent.tokenIn.address} ${jsonArrayForCli(tokenOutAddresses)} ${jsonArrayForCli(recipients)} ${jsonArrayForCli(amountStrings)} ${jsonArrayForCli(minAmountStrings)} ${shellSingleQuote(intent.referenceId)} --contract ${config.contracts.payrollRouter} --address ${intent.payer} --chain ARC-TESTNET`;
 
-      return {
+      const previousPayoutCount = batches
+        .slice(0, batch.batchIndex - 1)
+        .reduce((total, previousBatch) => total + previousBatch.payouts.length, 0);
+      const fallbackCommands = batch.payouts.map((payout, payoutIndex) => ({
+        payoutIndex: previousPayoutCount + payoutIndex + 1,
         batchIndex: batch.batchIndex,
-        recipientCount: batch.payouts.length,
-        allSameTokenOut,
-        recommendedOverload: allSameTokenOut ? "single-tokenOut" : "multi-tokenOut",
-        functionSignature,
-        executionArgs,
-        calldata,
-        circleCliCommand,
-        estimates: {
-          estimatedAmountsOut: estimate.estimatedAmountsOut.map((amount) => amount.toString()),
-          totalEstimatedOut: estimate.totalEstimatedOut.toString(),
-          totalFees: estimate.totalFees.toString(),
+        tokenIn: intent.tokenIn.address,
+        tokenOut: payout.tokenOut.address,
+        recipient: payout.recipient,
+        amountIn: payout.amountIn.toString(),
+        minAmountOut: minAmountsOut[payoutIndex].toString(),
+        functionSignature: ROUTE_AND_PAY_SIGNATURE,
+        circleCliCommand: `circle wallet execute "${ROUTE_AND_PAY_SIGNATURE}" ${intent.tokenIn.address} ${payout.tokenOut.address} ${payout.amountIn.toString()} ${minAmountsOut[payoutIndex].toString()} ${payout.recipient} --contract ${config.contracts.payrollRouter} --address ${intent.payer} --chain ARC-TESTNET`,
+      }));
+
+      return {
+        batch: {
+          batchIndex: batch.batchIndex,
+          recipientCount: batch.payouts.length,
+          allSameTokenOut,
+          recommendedOverload: allSameTokenOut ? "single-tokenOut" : "multi-tokenOut",
+          functionSignature,
+          executionArgs,
+          calldata,
+          circleCliCommand,
+          estimates: {
+            estimatedAmountsOut: estimate.estimatedAmountsOut.map((amount) => amount.toString()),
+            totalEstimatedOut: estimate.totalEstimatedOut.toString(),
+            totalFees: estimate.totalFees.toString(),
+          },
         },
+        fallbackCommands,
       };
     }),
   );
+  const preparedBatches = prepared.map((entry) => entry.batch);
+  const fallbackCommands = prepared.flatMap((entry) => entry.fallbackCommands);
 
   return {
     service: PAYROLL_PREPARE_SERVICE_ID,
@@ -455,6 +476,13 @@ export async function preparePayrollBatches(intent: NormalizedPayrollPrepareInte
       circleCliCommand: `circle wallet execute "approve(address,uint256)" ${config.contracts.payrollRouter} ${totals.totalAmountIn.toString()} --contract ${intent.tokenIn.address} --address ${intent.payer} --chain ARC-TESTNET`,
     },
     batches: preparedBatches,
+    circleCliFallback: {
+      reason:
+        "Circle CLI may fail to estimate overloaded array functions. Use scalar routeAndPay commands when Circle CLI batch execution is unavailable.",
+      mode: "routeAndPay-per-payout",
+      commandCount: fallbackCommands.length,
+      commands: fallbackCommands,
+    },
     arcscan: {
       payrollRouter: arcscanAddressUrl(config.contracts.payrollRouter),
       payer: arcscanAddressUrl(intent.payer),
@@ -464,6 +492,8 @@ export async function preparePayrollBatches(intent: NormalizedPayrollPrepareInte
       "Payroll execution plan unlocked",
       "Approve tokenIn to WizPay payroll router",
       "Execute each batchRouteAndPay command from the payer wallet",
+      "Batch calldata remains available for SDK/frontends",
+      "Circle CLI fallback routeAndPay commands are provided per payout",
       "No backend execution performed",
     ],
   };

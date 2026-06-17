@@ -122,7 +122,7 @@ The recipients, amounts, and reference ID above are examples only.
 
 ## Payroll Stage 2 Prepare
 
-This endpoint returns `402 Payment Required` until the agent pays the service fee and retries with `X-PAYMENT`. The paid response contains a token approval command, dynamic batch count, calldata per batch, and one Circle CLI command per batch.
+This endpoint returns `402 Payment Required` until the agent pays the service fee and retries with `X-PAYMENT`. The paid response contains a token approval command, dynamic batch count, calldata per batch, one Circle CLI command per batch, and scalar `routeAndPay(...)` fallback commands per payout.
 
 ```bash
 curl -i http://localhost:3000/payroll/prepare \
@@ -189,7 +189,19 @@ curl -s http://localhost:3000/payroll/prepare \
   }' | python3 -m json.tool
 ```
 
-Use `approval.circleCliCommand`, then execute each `batches[].circleCliCommand` from the payer wallet. Replaying the same `X-PAYMENT` tx hash should not unlock another prepare response.
+Use `approval.circleCliCommand`, then use either SDK/frontend batch execution from `batches[].calldata` or Circle CLI fallback commands from `circleCliFallback.commands`. Replaying the same `X-PAYMENT` tx hash should not unlock another prepare response.
+
+### Circle CLI Fallback
+
+Circle CLI can have trouble estimating overloaded functions with array arguments for `batchRouteAndPay(...)`. Nano WizPay still generates the batch plan and calldata as the primary SDK/frontend path, but it also returns one scalar `routeAndPay(address,address,uint256,uint256,address)` command per payout for Circle CLI compatibility.
+
+The scalar fallback uses the same `getBatchEstimatedOutputs(...)` results and slippage-derived `minAmountOut` values as the batch plan. `minAmountOut` is not set to zero.
+
+Verified scalar fallback proof:
+
+- Payroll `routeAndPay` success tx: https://testnet.arcscan.app/tx/0x536d83f722873e003191de7cdccd4fb075168be1aeb2fc073c8ae406bfa84878
+
+Do not overclaim Circle CLI batch execution as verified. Batch plan/calldata is generated; scalar fallback has been verified with Circle CLI.
 
 ## Payroll DRY_RUN Agent
 
@@ -225,6 +237,7 @@ Expected flow:
 - Retries `/payroll/prepare` with `X-PAYMENT`.
 - Prints the approval command.
 - Prints each `batchRouteAndPay(...)` command and calldata length.
+- Prints fallback `routeAndPay(...)` commands for Circle CLI array-argument compatibility.
 - Does not run any Circle CLI command.
 
 Set `PAYROLL_INTENT_JSON` to override the generated 3-payout local demo intent. The sample stays small, uses a dynamic reference ID, does not use USYC, and derives batching from the API response.
@@ -234,6 +247,7 @@ Set `PAYROLL_INTENT_JSON` to override the generated 3-payout local demo intent. 
 - Service fee tx: https://testnet.arcscan.app/tx/0x6ba878c0f83d5ea763a810ce55154f86f93ff9562b233c7224351e1cb539316b
 - Approve tx: https://testnet.arcscan.app/tx/0x30961fd71fea75ed61a96b68ffdab09bb0815db151ff30ed03682f3ba900f0b2
 - Swap execution tx: https://testnet.arcscan.app/tx/0xa9f27f981910693728bb337c179b80e5cddd841fdd2ac7a63a8ed0b3f542fccd
+- Payroll routeAndPay fallback tx: https://testnet.arcscan.app/tx/0x536d83f722873e003191de7cdccd4fb075168be1aeb2fc073c8ae406bfa84878
 
 ## Note
 
