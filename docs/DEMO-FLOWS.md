@@ -2,7 +2,16 @@
 
 Nano WizPay is a non-custodial paid orchestration API for autonomous agents on Arc Testnet. The API server validates intent, reads contract state, returns quotes, gates paid prepare endpoints behind a USDC service fee, and returns execution plans, calldata, and Circle CLI commands.
 
-The API server runs locally, usually at `http://localhost:3000`. The contracts, token transfers, approvals, swaps, and payroll payouts run on Arc Testnet. The backend never signs transactions, never executes user transactions, never stores private keys, and never custodies user funds. The agent or user wallet executes the returned commands.
+The production API is `https://api.wizpay.xyz`. For local development, the API server runs at `http://localhost:3000`. The contracts, token transfers, approvals, swaps, and payroll payouts run on Arc Testnet. The backend never signs transactions, never executes user transactions, never stores private keys, and never custodies user funds. The agent or user wallet executes the returned commands.
+
+Public endpoints:
+
+- `GET /services`
+- `GET /contracts/status`
+- `POST /swap/quote`
+- `POST /swap/prepare`
+- `POST /payroll/plan`
+- `POST /payroll/prepare`
 
 ## Execution Model
 

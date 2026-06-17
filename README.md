@@ -10,11 +10,26 @@ npm install
 npm run dev
 ```
 
-The local API defaults to:
+Production API:
+
+```text
+https://api.wizpay.xyz
+```
+
+Local development API:
 
 ```text
 http://localhost:3000
 ```
+
+Public endpoints:
+
+- `GET /services`
+- `GET /contracts/status`
+- `POST /swap/quote`
+- `POST /swap/prepare`
+- `POST /payroll/plan`
+- `POST /payroll/prepare`
 
 ## Detailed Documentation
 

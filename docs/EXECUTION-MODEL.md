@@ -2,7 +2,13 @@
 
 Nano WizPay separates local API orchestration from onchain execution.
 
-## Local API Server
+## API Servers
+
+Production API:
+
+```text
+https://api.wizpay.xyz
+```
 
 During local development, the Nano WizPay API server runs on:
 
@@ -11,6 +17,15 @@ http://localhost:3000
 ```
 
 The API server validates requests, reads Arc Testnet contract state, calculates quotes and plans, verifies service-fee payment proofs, and returns execution plans.
+
+Public endpoints:
+
+- `GET /services`
+- `GET /contracts/status`
+- `POST /swap/quote`
+- `POST /swap/prepare`
+- `POST /payroll/plan`
+- `POST /payroll/prepare`
 
 ## Arc Testnet Contracts
 

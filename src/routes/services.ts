@@ -43,7 +43,7 @@ export async function servicesRoutes(app: FastifyInstance) {
         supportedTokens: supportedTokens().map((token) => token.symbol),
         payrollRouter: config.contracts.payrollRouter,
         maxRecipientsPerBatch: config.payroll.maxRecipientsPerTx,
-        note: "Stage 1 planner only; execution prepare will be added later.",
+        note: "Free payroll planner. Use /payroll/prepare after service-fee payment to unlock calldata and Circle CLI execution commands.",
         arcscan: {
           payrollRouter: arcscanAddressUrl(config.contracts.payrollRouter),
         },

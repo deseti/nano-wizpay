@@ -4,6 +4,29 @@ Nano WizPay is a non-custodial paid orchestration API for autonomous agents on A
 
 Nano WizPay does not replace the agent wallet. The backend prepares the work; the agent or user wallet executes it.
 
+## API URLs
+
+Production API:
+
+```text
+https://api.wizpay.xyz
+```
+
+Local development API:
+
+```text
+http://localhost:3000
+```
+
+Public endpoints:
+
+- `GET /services`
+- `GET /contracts/status`
+- `POST /swap/quote`
+- `POST /swap/prepare`
+- `POST /payroll/plan`
+- `POST /payroll/prepare`
+
 ## Why Agents Need Paid Orchestration
 
 Autonomous agents need repeatable, machine-readable ways to:

@@ -330,7 +330,8 @@ export async function planPayrollBatches(intent: NormalizedPayrollIntent) {
       "Payroll intent received",
       "Validated tokenIn, tokenOuts, recipients, and amounts",
       `Split payouts into Arc-safe batches of max ${config.payroll.maxRecipientsPerTx} recipients`,
-      "No execution performed in Stage 1",
+      "Free planner only; no backend execution performed",
+      "Use /payroll/prepare with X-PAYMENT to unlock execution commands",
     ],
   };
 }
